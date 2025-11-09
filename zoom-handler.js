@@ -1,5 +1,6 @@
 // zoom-handler.js
-export default class ZoomHandler {
+// export default class ZoomHandler {
+class ZoomHandler {
   constructor(element) {
     this.element = element;
     if (!this.element) return;
