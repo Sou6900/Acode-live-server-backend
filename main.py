@@ -45,9 +45,26 @@ def home():
                 # Eruda script to be injected & direct open (no eruda button)
                 eruda_script = """
                 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+                
+                <style>
+                
+                .eruda-entry-btn {
+                    background-color: #007bff !important;
+                    opacity: 0.8 !important;
+                    border: 1px solid white !important;
+                }
+                
+                .eruda-icon-btn {
+                    color: white !important; 
+                }
+                </style>
                 <script>
                     eruda.init();
-                    eruda.show('console'); /* <-- This line directly opens the console */
+                    
+                    
+                    setTimeout(function() {
+                        eruda.show('console');
+                    }, 100); 
                 </script>
                 """
 
