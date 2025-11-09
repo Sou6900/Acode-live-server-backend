@@ -51,17 +51,30 @@ def home():
                 """
                 
                 # ZoomHandler script to be injected (loads from local server)
+                # zoom_script = """
+                # <script type="module">
+                #     try {
+                #         import ZoomHandler from '/zoom-handler.js';
+                #         // Attach the handler to the <body> element
+                #         new ZoomHandler(document.body);
+                #     } catch (e) {
+                #         console.error('Failed to load ZoomHandler', e);
+                #     }
+                # </script>
+                # """
+
                 zoom_script = """
-                <script type="module">
-                    try {
-                        import ZoomHandler from '/zoom-handler.js';
-                        // Attach the handler to the <body> element
-                        new ZoomHandler(document.body);
-                    } catch (e) {
-                        console.error('Failed to load ZoomHandler', e);
-                    }
-                </script>
-                """
+            <script src="/zoom-handler.js"></script>
+            <script>
+                try {
+                    // Attach the handler to the <body> element
+                    // The class is now on the global 'window' object
+                    new ZoomHandler(document.body);
+                } catch (e) {
+                    console.error('Failed to load ZoomHandler', e);
+                }
+            </script>
+            """
 
                 # Inject Eruda if enabled
                 if eruda_enabled:
