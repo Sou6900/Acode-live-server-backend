@@ -42,10 +42,13 @@ def home():
                 with open(full_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
 
-                # Eruda script to be injected
+                # Eruda script to be injected & direct open (no eruda button)
                 eruda_script = """
                 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-                <script>eruda.init();</script>
+                <script>
+                    eruda.init();
+                    eruda.show('console'); /* <-- This line directly opens the console */
+                </script>
                 """
 
                 # If the flag is set, inject the script
