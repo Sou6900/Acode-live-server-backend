@@ -12,8 +12,9 @@ import re
 appHandler.startHandling()
 showLogo()
 
-# Global flag to control Eruda injection
+# Global flags to control injection
 eruda_enabled = False # This flag is set by the /setup route
+zoom_enabled = False # This flag is also set by the /setup route
 
 app = Flask(__name__)
 CORS(app)
@@ -26,7 +27,7 @@ template_env = None
 @app.route('/', methods=['GET', 'POST'])
 def home():
     # Get global variables
-    global eruda_enabled, BASE_DIR, jsonData
+    global eruda_enabled, zoom_enabled, BASE_DIR, jsonData
     
     if request.method == 'GET':
         file_name = jsonData.get('fileName')
@@ -40,22 +41,29 @@ def home():
                 with open(full_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
 
-                # Eruda script to be injected
-                # This now points to the local /eruda.min.js route
+                # Eruda script to be injected (loads from local server)
                 eruda_script = """
                 <script src="/eruda.min.js"></script>
                 <script>
                     eruda.init();
-                    /* Use a small timeout to ensure 'init' has completed
-                     * before 'show' is called.
-                    */
-                    setTimeout(function() {
-                        eruda.show('console');
-                    }, 100); 
+                    setTimeout(function() { eruda.show('console'); }, 100); 
+                </script>
+                """
+                
+                # ZoomHandler script to be injected (loads from local server)
+                zoom_script = """
+                <script type="module">
+                    try {
+                        import ZoomHandler from '/zoom-handler.js';
+                        // Attach the handler to the <body> element
+                        new ZoomHandler(document.body);
+                    } catch (e) {
+                        console.error('Failed to load ZoomHandler', e);
+                    }
                 </script>
                 """
 
-                # If the flag is set, inject the script
+                # Inject Eruda if enabled
                 if eruda_enabled:
                     # Try to inject before </head> (case-insensitive)
                     (html_content, count) = re.subn(
@@ -65,7 +73,6 @@ def home():
                         count=1, 
                         flags=re.IGNORECASE
                     )
-                    
                     # If </head> was not found, inject before </body>
                     if count == 0:
                          html_content, _ = re.subn(
@@ -75,6 +82,20 @@ def home():
                              count=1, 
                              flags=re.IGNORECASE
                          )
+                
+                # Inject ZoomHandler if enabled
+                if zoom_enabled:
+                    # Try to inject before </body> (case-insensitive)
+                    (html_content, count) = re.subn(
+                        r'</body>', 
+                        zoom_script + r'</body>', 
+                        html_content, 
+                        count=1, 
+                        flags=re.IGNORECASE
+                    )
+                    # If </body> was not found, just append to the end
+                    if count == 0:
+                        html_content += zoom_script
 
                 # Return the modified (or original) HTML content
                 return html_content
@@ -94,8 +115,8 @@ def home():
 
 @app.route('/setup', methods=['PATCH'])
 def setup():
-    # Added `eruda_enabled` to globals
-    global BASE_DIR, jsonData, template_env, eruda_enabled
+    # Add 'eruda_enabled' and 'zoom_enabled' to globals
+    global BASE_DIR, jsonData, template_env, eruda_enabled, zoom_enabled
     
     data = request.get_json()
     file_name = data.get('fileName')
@@ -112,15 +133,21 @@ def setup():
     jsonData['fileName'] = file_name
     template_env = Environment(loader=FileSystemLoader(template_folder), auto_reload=True)
 
-    # 'eruda' flag from the plugin
+    # Check for the 'eruda' flag from the plugin
     if 'eruda' in data and data['eruda'] == True:
         eruda_enabled = True
     else:
         eruda_enabled = False
+        
+    # Check for the 'zoom' flag from the plugin
+    if 'zoom' in data and data['zoom'] == True:
+        zoom_enabled = True
+    else:
+        zoom_enabled = False
 
     return jsonify({'message': 'Base and template path set successfully'}), 201
 
-# --- Added this new route to serve the offline eruda.min.js ---
+# --- route to serve the offline eruda.min.js ---
 @app.route('/eruda.min.js')
 def serve_eruda():
     """
@@ -131,6 +158,19 @@ def serve_eruda():
         return send_file('eruda.min.js')
     except Exception as e:
         print(f"Could not serve eruda.min.js: {e}")
+        return "File not found", 404
+
+# --- route to serve the zoom-handler.js ---
+@app.route('/zoom-handler.js')
+def serve_zoom_handler():
+    """
+    Serves the zoom-handler.js file.
+    Assumes 'zoom-handler.js' is in the same directory as 'main.py'.
+    """
+    try:
+        return send_file('zoom-handler.js')
+    except Exception as e:
+        print(f"Could not serve zoom-handler.js: {e}")
         return "File not found", 404
 
 @app.route('/<path:filepath>')
