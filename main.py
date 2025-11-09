@@ -6,7 +6,7 @@ from modules.port import get_available_port
 from modules.logo import showLogo
 from appHandler import appHandler
 import os
-import re # Added for script injection
+import re
 
 # Run app handler and show logo
 appHandler.startHandling()
@@ -94,7 +94,7 @@ def home():
 
 @app.route('/setup', methods=['PATCH'])
 def setup():
-    # Added 'eruda_enabled' to globals
+    # Added `eruda_enabled` to globals
     global BASE_DIR, jsonData, template_env, eruda_enabled
     
     data = request.get_json()
@@ -112,7 +112,7 @@ def setup():
     jsonData['fileName'] = file_name
     template_env = Environment(loader=FileSystemLoader(template_folder), auto_reload=True)
 
-    # Check for the 'eruda' flag from the plugin
+    # 'eruda' flag from the plugin
     if 'eruda' in data and data['eruda'] == True:
         eruda_enabled = True
     else:
@@ -128,12 +128,10 @@ def serve_eruda():
     Assumes 'eruda.min.js' is in the same directory as 'main.py'.
     """
     try:
-        # 'eruda.min.js' should be in the 'Acode-live-server-backend' root folder
         return send_file('eruda.min.js')
     except Exception as e:
         print(f"Could not serve eruda.min.js: {e}")
         return "File not found", 404
-# --- End of new route ---
 
 @app.route('/<path:filepath>')
 def catch_all(filepath):
