@@ -6,14 +6,14 @@ from modules.port import get_available_port
 from modules.logo import showLogo
 from appHandler import appHandler
 import os
-import re # <-- Added for script injection
+import re # Added for script injection
 
 # Run app handler and show logo
 appHandler.startHandling()
 showLogo()
 
 # Global flag to control Eruda injection
-eruda_enabled = False # <-- Added for Eruda state
+eruda_enabled = False # This flag is set by the /setup route
 
 app = Flask(__name__)
 CORS(app)
@@ -21,9 +21,8 @@ portList = [1024,1025,1026,1027,1028,1029,1030,1031,1032,1033,1034]
 port = get_available_port(portList)
 jsonData = {}
 BASE_DIR = None
-template_env = None # This is no longer used by home(), but kept for setup
+template_env = None
 
-# --- This function has been completely replaced ---
 @app.route('/', methods=['GET', 'POST'])
 def home():
     # Get global variables
@@ -32,7 +31,6 @@ def home():
     if request.method == 'GET':
         file_name = jsonData.get('fileName')
         
-        # Check if BASE_DIR (the path) is set
         if file_name and BASE_DIR:
             try:
                 # Create the full path to the file
@@ -42,26 +40,15 @@ def home():
                 with open(full_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
 
-                # Eruda script to be injected & direct open (no eruda button)
+                # Eruda script to be injected
+                # This now points to the local /eruda.min.js route
                 eruda_script = """
-                <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-                
-                <style>
-                
-                .eruda-entry-btn {
-                    background-color: #007bff !important;
-                    opacity: 0.8 !important;
-                    border: 1px solid white !important;
-                }
-                
-                .eruda-icon-btn {
-                    color: white !important; 
-                }
-                </style>
+                <script src="/eruda.min.js"></script>
                 <script>
                     eruda.init();
-                    
-                    
+                    /* Use a small timeout to ensure 'init' has completed
+                     * before 'show' is called.
+                    */
                     setTimeout(function() {
                         eruda.show('console');
                     }, 100); 
@@ -103,10 +90,8 @@ def home():
         else:
             return 'File path not configured. Send a PATCH request to /setup first.', 400
     else:
-        # This POST method seems unused, but keeping it as per original file
         return jsonify({"message": 'Hello, World!'}), 200
 
-# --- This function has been modified ---
 @app.route('/setup', methods=['PATCH'])
 def setup():
     # Added 'eruda_enabled' to globals
@@ -125,22 +110,34 @@ def setup():
         return jsonify({'error': 'Invalid template path'}), 400
 
     jsonData['fileName'] = file_name
-    # We still set up Jinja2 env, though home() doesn't use it directly
     template_env = Environment(loader=FileSystemLoader(template_folder), auto_reload=True)
 
-    # --- Added this section to check for Eruda flag ---
+    # Check for the 'eruda' flag from the plugin
     if 'eruda' in data and data['eruda'] == True:
         eruda_enabled = True
     else:
         eruda_enabled = False
-    # --- End of added section ---
 
     return jsonify({'message': 'Base and template path set successfully'}), 201
 
-# --- This function is unchanged ---
-# This route is crucial for serving CSS, JS, Images, etc.
+# --- Added this new route to serve the offline eruda.min.js ---
+@app.route('/eruda.min.js')
+def serve_eruda():
+    """
+    Serves the eruda.min.js file.
+    Assumes 'eruda.min.js' is in the same directory as 'main.py'.
+    """
+    try:
+        # 'eruda.min.js' should be in the 'Acode-live-server-backend' root folder
+        return send_file('eruda.min.js')
+    except Exception as e:
+        print(f"Could not serve eruda.min.js: {e}")
+        return "File not found", 404
+# --- End of new route ---
+
 @app.route('/<path:filepath>')
 def catch_all(filepath):
+    # This route is crucial for serving CSS, JS, Images, etc.
     global BASE_DIR
     DIR = BASE_DIR
     if not DIR:
@@ -164,13 +161,11 @@ def catch_all(filepath):
     else:
         return f'File not found: {filepath}', 404
 
-# --- This function is unchanged ---
 @app.route('/check', methods=["GET"])
 def send_alive_signal_too_the_client():
   if request.method == "GET":
     print("Successfully Port Identified by the client connection process started")
     return jsonify({"message":"Ready For 'PATCH' request","key":"AcodeLiveServer","port": f"{port}"}), 200
 
-# --- This block is unchanged ---
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
